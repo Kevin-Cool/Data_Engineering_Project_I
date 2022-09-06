@@ -52,7 +52,7 @@ def scrape_jaarrekeningen(kmo_ID):
         print("!!!!!!      open website failed")
         print("Exception: ", e)
     
-    # open wat should be the only pdf 
+    # open what should be the only pdf 
     try:
         # get all pdf's
         filelist = [ f for f in os.listdir(download_folderpath) if f.endswith(".pdf") ]
