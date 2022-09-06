@@ -1,21 +1,12 @@
 from asyncio.windows_events import NULL
-from distutils.log import debug
-import imp
-from flask import Flask, render_template, request, url_for, Response, stream_with_context
-from xlReader import test,GetxcelDataLogs,GetxcelData,GetxcelDataStarted,fix_hyperlink,split_into_sector_tags
+from flask import Flask, render_template, request, Response, stream_with_context
+from xlReader import GetxcelDataLogs,GetxcelData,GetxcelDataStarted,fix_hyperlink,split_into_sector_tags
 from webScraper import scrape_website
 from scoreFunctions import update_kmo_scores,update_sector_scores
 from sqlFuncions import translate_search_to_sql
 from jaarrekeningen import scrape_jaarrekeningen,read_pdf
 from sqlConnection import _MYSQL, _MYSQL_INSERT
-import json
-import random
-import time
 from datetime import datetime
-import pymysql
-import selenium 
-import pandas as pd
-from sshtunnel import SSHTunnelForwarder
 
 app = Flask(__name__)
 # basic sql statements
