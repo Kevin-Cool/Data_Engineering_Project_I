@@ -7,7 +7,6 @@ from selenium import webdriver
 
 def scrape_website(kmo_ID,website,durabilitycategories):
     PATH = "C:\Program Files (x86)\chromedriver.exe"
-    #print("scraper got: "+kmo_ID+" - "+website)
     try:
         #print(durabilitycategories)
         browser = webdriver.Chrome(PATH)
@@ -18,12 +17,11 @@ def scrape_website(kmo_ID,website,durabilitycategories):
         base_web_url=  get_base_url(browser.current_url)
         #time.sleep(3)
         full_home_page =  browser.find_element_by_xpath("//body")
-        #nav_element = browser.find_element_by_xpath("//html")
 
         nav_pure_html = full_home_page.get_attribute("innerHTML")
         scraped_page_urls = get_all_valid_urls(nav_pure_html,base_web_url)
         print(scraped_page_urls)
-        # create humancapital/naturalcapital element
+        # Check each page for keywords
         temp_keyword_list = []
         for page_url in scraped_page_urls:
             try:
@@ -34,30 +32,23 @@ def scrape_website(kmo_ID,website,durabilitycategories):
                 time.sleep(1)
                 current_page_body =  browser.find_element_by_xpath("//body")
                 current_page_html = current_page_body.get_attribute("innerHTML")
-                #print(current_page_html)
                 # get every text element: > ... <
                 try:
                     inner_elements = re.findall("(?<=>).*?(?=<)",current_page_html)
-                    #print(inner_elements)
+                    # check the inside of each element for keywords
                     for inner_element in inner_elements:
-                        #print("-----------")
-                        #print(inner_element)
                         temp_split = inner_element.split('>')
                         last_element = temp_split[-1].rstrip().lstrip()
-                        #print(last_element)
                         # remove bad characters
                         last_element = last_element.replace("'","")
                         # if string is large enough search for keywords
                         if(len(last_element)>=2):
-                            #print("element was >=2")
                             # check if contains keyword 
                             for index, row in durabilitycategories.iterrows():
                                 #print("checking vs every keyword")
                                 if(str.__contains__(last_element, row['KeyWord'])):
                                     temp_combination = list((row['KeyWordID'],last_element))
                                     temp_keyword_list.append(temp_combination)
-                                    #temp_keyword_list.append(list(row,last_element))
-                            # add to keyword counter and save string
 
                 except:
                     print("!!!!!      crawling page failed")
@@ -66,7 +57,6 @@ def scrape_website(kmo_ID,website,durabilitycategories):
                 print("!!!!!!      getting page failed")
 
             
-        #print(temp_keyword_list) 
         # remove dublicates
         keyword_list_cleaned = []
         for temp_keyword in temp_keyword_list:
@@ -82,7 +72,6 @@ def scrape_website(kmo_ID,website,durabilitycategories):
                     # make sure text is not to long
                     if(len(kmo_keyword[1])>512):
                         kmo_keyword[1] = kmo_keyword[1][0:500]+"..."
-                    #print('''INSERT INTO scrape.kmodurabilityitems (kmoID, durabilitykeywordID, context) VALUES ('{}', {}, '{}'); '''.format(kmo_ID,kmo_keyword[0],kmo_keyword[1]))
                     _MYSQL_INSERT('''INSERT INTO scrape.kmodurabilityitems (kmoID, durabilitykeywordID, context) VALUES ('{}', {}, '{}'); '''.format(kmo_ID,kmo_keyword[0],kmo_keyword[1])) 
                     # check if is unique
                     relevant_key = durabilitycategories.loc[durabilitycategories['KeyWordID'] == kmo_keyword[0]]
@@ -108,20 +97,11 @@ def scrape_website(kmo_ID,website,durabilitycategories):
             # add total score to kmo 
             total_human = len(unique_human)
             total_nature = len(unique_natural)
-            #print(''' UPDATE scrape.kmo SET humancapitalScore = {human}, naturalcapitalScore = {nature} WHERE  ID = '{ID}';'''.format(human = total_human, nature = total_nature , ID = kmo_ID))
             _MYSQL_INSERT(''' UPDATE scrape.kmo SET humancapitalScore = {human}, naturalcapitalScore = {nature} WHERE  ID = '{ID}';'''.format(human = total_human, nature = total_nature , ID = kmo_ID))
         except Exception as e:
             print("!!!!!!      outer insert failed")
             print("Exception: ", e)
         
-            
-
-
-
-        #print(re.findall("((?<=href=\")(.*)(?=\"))|((?<=href=')(.*)(?='))",nav_pure_html)) #((?<=href=")(.*)(?="))|((?<=href=')(.*)(?='))
-        
-        #By.partialLinkText("over")
-        #element = WebDriverWait(browser, 10).until(lambda x: x.find_element(By.LINK_TEXT,"Over ons")) 
         time.sleep(3)
     except Exception as e:
         print("getting website failed")
@@ -131,7 +111,6 @@ def scrape_website(kmo_ID,website,durabilitycategories):
     return "done?"
 
 def get_base_url(url):
-    #https://www.valckenier.be/nl/renault
     temp_url = url[url.find("www"):]
     url_bits = temp_url.split('/')
     return url[:url.find("www")]+url_bits[0]

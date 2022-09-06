@@ -129,13 +129,7 @@ def GetxcelData():
                         print("kmo with this ID was found")
                         # TODO check if update was selected 
 
-                    json_data = json.dumps(
-                        # row[1].value name ,  row[3].value nrperson,  , row[7].value telephone , row[8].value email, row[9].value ID , row[14].value webadres
-                        # row[2].value gemeente.name , row[12].value street , row[13].value zipcode
-                        # row[4].value omzet , row[5].value totaal active , row[10].value netto toegevoegd
-                        # row[15].value sector
-                        #{'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'), 'value': random.random() * 100})
-                        {'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'), 'value':  'ID: '+ str(row[0].value) + ',Naam: '+row[1].value + ',Gem: '+row[2].value })#
+                    json_data = json.dumps({'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'), 'value':  'ID: '+ str(row[0].value) + ',Naam: '+row[1].value + ',Gem: '+row[2].value })#
                 #always run loging at the end
                 if(json_data is NULL):
                     json_data = json.dumps({'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'), 'value':  'NO json_data was created!' })
