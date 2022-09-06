@@ -1,12 +1,5 @@
 from asyncio.windows_events import NULL
-import json
-import random
-import string
-import re
-import time
-from openpyxl import Workbook, load_workbook
 from sqlConnection import _MYSQL, _MYSQL_INSERT
-import pymysql
 
 
 def update_kmo_scores():

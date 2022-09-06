@@ -1,14 +1,8 @@
 from asyncio.windows_events import NULL
 import json
-from operator import truediv
 from pickle import NONE, TRUE
-import random
-import string
-import re
 import time
 from datetime import datetime
-from traceback import print_tb
-from warnings import catch_warnings
 from openpyxl import Workbook, load_workbook
 from sqlConnection import _MYSQL, _MYSQL_INSERT
 from jaarrekeningen import scrape_jaarrekeningen

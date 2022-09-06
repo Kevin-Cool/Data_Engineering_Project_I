@@ -1,23 +1,9 @@
 from asyncio.windows_events import NULL
-import json
-from operator import truediv
-from pickle import NONE, TRUE
-from pydoc import describe
-import random
-import string
 import re
 import time
-from datetime import datetime
-from traceback import print_tb
-from warnings import catch_warnings
-from openpyxl import Workbook, load_workbook
 from sqlConnection import _MYSQL, _MYSQL_INSERT
-from Classes import Humancapital,Naturalcapital
-import pymysql
 
 from selenium import webdriver
-from selenium.webdriver.support.wait import WebDriverWait 
-from selenium.webdriver.common.by import By
 
 def scrape_website(kmo_ID,website,durabilitycategories):
     PATH = "C:\Program Files (x86)\chromedriver.exe"

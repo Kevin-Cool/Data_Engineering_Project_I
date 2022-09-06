@@ -1,27 +1,11 @@
 from asyncio.windows_events import NULL
-import json
-from multiprocessing.connection import wait
-from operator import truediv
-from pickle import NONE, TRUE
-from pydoc import describe
-import random
-import string
-import re
 import time
-from datetime import datetime
-from traceback import print_tb
-from warnings import catch_warnings
-from openpyxl import Workbook, load_workbook
 from sqlConnection import _MYSQL, _MYSQL_INSERT
-from Classes import Humancapital,Naturalcapital
-import pymysql
 
 from selenium import webdriver
 from selenium.webdriver.support.wait import WebDriverWait 
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
-
-import requests
 
 import os
 
@@ -63,17 +47,6 @@ def scrape_jaarrekeningen(kmo_ID):
         PDF_download_button.click()
 
         time.sleep(3) # wait to be sure download is done
-        #time.sleep(500)
-        #response = requests.get("https://ws.cbso.nbb.be/authentic/legalEntity/{}/references".format("0416905901"),
-        #    headers={
-        #        #"X-RapidAPI-Host": "alexnormand-dino-ipsum.p.rapidapi.com",
-        #        "X-Request-Id": "1c55dcd8-2fbc-9523-fc23-9655c35e2e3f",
-        #        "NBB-CBSO-Subscription-Key": "b18466d5a2a540778375d973b3f3dd71",
-        #        "Accept": "application/json"
-        #    }
-        #)
-        #print (type(response.json()))
-        #print(response.json())
 
     except Exception as e:
         print("!!!!!!      open website failed")
@@ -104,7 +77,6 @@ def read_pdf(pdf_path,kmo_ID):
         text = page.extract_text()
         if(str.__contains__(text, "Volgens het geslacht en het studieniveau")):
             print("test contains")
-            #print(text)
             lines = text.split("\n")
             print(lines)
             # get index for start
@@ -113,8 +85,6 @@ def read_pdf(pdf_path,kmo_ID):
                 if(str.__contains__(line, "Aantal werknemers")):
                     start_index = index
             try:
-                #print("Aantal werknemers:")
-                #print(lines[start_index])
                 temp_employee_info = split_string_to_categories(lines[start_index])#   Aantal werknemers 
                 _MYSQL_INSERT('''INSERT INTO scrape.kmo_employees (kmo_ID, columnText, fulltime, parttime, total) VALUES ('{kmo_ID}', '{columnText}', '{fulltime}', '{parttime}', '{total}');'''.format(
                     kmo_ID = kmo_ID,
@@ -240,33 +210,6 @@ def read_pdf(pdf_path,kmo_ID):
                 print("!!!!!!      Insert employee info into DB failed ")
                 print("Exception: ", e)
 
-           
-            # info to get           // Voltijds 2. Deeltijds 3. Totaal i
-            
-            # n voltijdse equivalenten
-            #   Aantal werknemers  #split_string_to_categories("Aantal werknemers",text)
-            #   Mannen 
-            #       lager onderwijs
-            #       secundair onderwijs 
-            #       hoger niet-universitair onderwijs
-            #       universitair onderwijs
-            #   Vrouwen 
-            #       lager onderwijs
-            #       secundair onderwijs 
-            #       hoger niet-universitair onderwijs
-            #       universitair onderwijs
-            #   Volgens de beroepscategorie
-            #       Directiepersoneel
-            #       Bedienden
-            #       Arbeiders
-            #       Andere
-
-        #if(str.__contains__(text, "Omzet")):
-            # turnover  VASTE ACTIVA 
-            # totalAssets   TOTAAL VAN DE ACTIVA
-            # netValueAdded Vorderingen op ten hoogste één jaar
-
-    #print(text)
 
 def split_string_to_categories(raw_line):
     raw_line = raw_line.replace(",",".")
@@ -289,6 +232,3 @@ def is_number(n):
     except ValueError:
         return False
     return True
-
-
-# secundair onderwijs 1201 84 9 90,9
