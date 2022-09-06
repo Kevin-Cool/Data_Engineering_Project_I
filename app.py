@@ -26,22 +26,19 @@ kmo_all = '''SELECT k.ID,k.name,k.email,k.workforce,k.telephone,k.website,k.adre
 # Routing
 @app.route('/sqlTest')
 def sqlTest():
-    #data = _MYSQL('''SELECT VERSION();''')
     data = _MYSQL('''SELECT * FROM scrape.KMO;''')
     return str(data.iloc[0])
 
 # KMO Overview pages 
 @app.route('/KMOOverview')
 def KMOOverviewBase():
-    db_data_KMO = _MYSQL(kmo_all)
-    db_data_KMO.set_index('ID',inplace=True)
-    db_data_sector = _MYSQL('''SELECT * FROM scrape.Sector;''')
-    db_data_sector.set_index('ID',inplace=True)
+    df_data_KMO = _MYSQL(kmo_all)
+    df_data_KMO.set_index('ID',inplace=True)
+    df_data_sector = _MYSQL('''SELECT * FROM scrape.Sector;''')
+    df_data_sector.set_index('ID',inplace=True)
     df_scores = _MYSQL('''SELECT * FROM scrape.population_scores; ''')
     df_scores.set_index('ABCD_score',inplace=True)
-    #return db_data_KMO.to_json(orient="index",force_ascii=True,index=True)
-    return render_template('KMO_overview.html', kmo_data=db_data_KMO.to_json(orient="index",force_ascii=True,index=True), sector_data=db_data_sector.to_json(orient="index",force_ascii=True,index=True), baseurl=request.base_url, ABC_scores = df_scores.to_json(orient="index",force_ascii=True,index=True))
-    #return render_template('KMOOverview.html', tables=[db_data.to_html(classes='data')], titles=db_data.columns.values)
+    return render_template('KMO_overview.html', kmo_data=df_data_KMO.to_json(orient="index",force_ascii=True,index=True), sector_data=df_data_sector.to_json(orient="index",force_ascii=True,index=True), baseurl=request.base_url, ABC_scores = df_scores.to_json(orient="index",force_ascii=True,index=True))
 
 # KMO Overview pages 
 @app.route('/SectorOverview')
@@ -97,28 +94,15 @@ def getEmployeesByID(path):
     df_employee = _MYSQL('''SELECT * FROM scrape.kmo_employees where kmo_ID = '{}';'''.format(ID))
     return df_employee.to_json(orient="index",force_ascii=True,index=True)
 
-
-
-
-# save total score in kmo self 
-# OR 
-#   Later get all numbers and create 4 brake points 
-#   create a automatic splitsing of db (perhaps)
-#   create the 4 running averages?
-
 # multi select querry
 @app.route('/search/KMO', methods = ['GET', 'POST'])
 def searchKMOs(): 
     raw_data = request.get_json()
-         
-    
     df_data_KMO = _MYSQL(translate_search_to_sql(raw_data))
     print(df_data_KMO)
     df_data_KMO.drop_duplicates(subset=['ID'],inplace = True)
     df_data_KMO.set_index('ID',inplace=True)
-    # check if need to reorder
     return df_data_KMO.to_json(orient="index",force_ascii=True,index=True)
-    #return sql_statement
 
 # scrape urls
 
@@ -161,6 +145,7 @@ def scrapeJaarrekening(path):
     scrape_jaarrekeningen(ID)
     return "done?"
     
+
 
 # Test Pages
 
