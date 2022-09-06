@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static',filename='css/main.css') }}">
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <div class="navbar"> 
+        <a href="/"><div  class="navbar_item"> Home </div> </a>
+        <a href="/KMOOverview"><div  class="navbar_item"> KMOs </div> </a>
+        <a href="/SectorOverview"><div  class="navbar_item"> Sectors </div> </a>
+    </div>
+    <div class="container">
+        {% block body %}{% endblock %}
+    </div>
+</body>
+</html>

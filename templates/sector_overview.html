@@ -1,0 +1,200 @@
+{% extends 'base.html' %}
+
+{% block head %}
+<!--suppress JSUnresolvedLibraryURL -->
+<link rel="stylesheet" href="{{ url_for('static',filename='css/Sector.css') }}">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.0/jquery.min.js"></script>
+<script>
+    // data for ui
+    var current_selected = null;
+    // get Sector data
+    var sector_data = '{{ sector_data }}'
+    // port data to readeble JSON
+    var sector_data_clean = sector_data.replace(/&#34;/g, '"');
+    var sector_data_json = JSON.parse(sector_data_clean)
+    console.log(sector_data_json)
+    // info for querys 
+    var baseurl = '{{ baseurl }}'
+    baseurl = baseurl.replace("/SectorOverview","")
+    var search_query = null;
+    // ABC scores
+    var ABC_scores_pre = '{{ ABC_scores }}'
+    var ABC_scores_clean = ABC_scores_pre.replace(/&#34;/g, '"');
+    var ABC_scores = JSON.parse(ABC_scores_clean)
+    console.log("ABC_scores")
+    console.log(ABC_scores)
+
+    // onload function:
+    $(function() {
+        create_table()
+    });
+    function create_table(){
+        //document.getElementById("p1").innerHTML = data; kmo
+        const sector_overview_table = document.getElementById('sector_table');
+        sector_overview_table.innerHTML = "";
+
+        const keys = Object.keys(sector_data_json);
+        for(let i = 0; i < keys.length; i++){
+            place_sector(keys[i],sector_overview_table)
+        };
+    }
+    function place_sector(key,Sector_overview_table){
+        sector_data_json[key]["sectorID"] = key
+        // create sector item 
+        let sector = document.createElement("div");
+        sector.classList.add("Sector_overview_table_item")
+        if((sector_data_json[key].humancapitalScore === null) || (sector_data_json[key].naturalcapitalScore === null)){
+            sector.classList.add("Sector_overview_table_item_score_NONE")
+        }else{
+            sector.classList.add("Sector_overview_table_item_score_"+get_abc_score(((Number(sector_data_json[key].humancapitalScore)+Number(sector_data_json[key].naturalcapitalScore)))),"total")
+        }
+        sector.setAttribute("id", sector_data_json[key].sectorID);
+        sector.innerText = sector_data_json[key].name
+        // add onclick event 
+        sector.addEventListener('click', function(event) {
+            open_sector_details(sector_data_json[key])
+        })
+        // add arrow to item 
+        let sector_arrow = document.createElement("div");
+        sector_arrow.classList.add("Sector_overview_table_item_arrow")
+        sector_arrow.innerText = ">"
+        sector.appendChild(sector_arrow)
+        Sector_overview_table.appendChild(sector);
+    }
+    function open_sector_details(sector_info){
+        console.log(sector_info)
+        // make info visable 
+        document.getElementById('sector_info').style.visibility = "visible";
+
+        // unselect pre item 
+        if(current_selected !== null && current_selected.innerText !== sector_info.sectorID){
+            current_selected.classList.remove("Sector_overview_table_item_selected")
+        }
+        // if new item was selected
+        if(current_selected == null || current_selected.innerText !== sector_info.sectorID){
+            // select new item 
+            current_selected = document.getElementById(sector_info.sectorID);
+            current_selected.classList.add("Sector_overview_table_item_selected")
+
+            // fill in info 
+            // set name
+            set_name_info_item("Info_4",sector_info.name,sector_info.humancapitalScore,sector_info.naturalcapitalScore)
+            // set scores
+            set_score_info_item("Info_1",sector_info.humancapitalScore,"human")
+            set_score_info_item("Info_2",sector_info.naturalcapitalScore,"nature")
+        }
+    }
+
+
+
+    // funcions for setting Sector info 
+    function set_general_info_item(elementID,text){
+        if(text === null){
+            document.getElementById(elementID).innerText =  "Geen info"
+            document.getElementById(elementID+"_container").classList.add("Sector_overview_info_item_no_info")
+        }else{
+            document.getElementById(elementID).innerText =  text
+            document.getElementById(elementID+"_container").classList.remove("Sector_overview_info_item_no_info")
+        }
+    }
+    function set_score_info_item(elementID,score,type){
+        // remove pre colors
+        document.getElementById(elementID+"_container").classList.remove("Sector_overview_info_item_score_A")
+        document.getElementById(elementID+"_container").classList.remove("Sector_overview_info_item_score_B")
+        document.getElementById(elementID+"_container").classList.remove("Sector_overview_info_item_score_C")
+        document.getElementById(elementID+"_container").classList.remove("Sector_overview_info_item_score_D")
+        document.getElementById(elementID+"_container").classList.remove("Sector_overview_info_item_score_NONE")
+        // add new info 
+        if(score === null){
+            document.getElementById(elementID).innerText =  "Geen info"
+            document.getElementById(elementID+"_container").classList.add("Sector_overview_info_item_score_NONE")
+        }else{
+            score_letter = get_abc_score(score,type)
+            document.getElementById(elementID).innerText = score_letter+" ("+ score+")"
+            document.getElementById(elementID+"_container").classList.add("Sector_overview_info_item_score_"+score_letter)
+        }
+    }
+    function set_name_info_item(elementID,name,score1,score2){
+        // remove pre colors
+        document.getElementById(elementID+"_container").classList.remove("Sector_overview_info_item_score_A")
+        document.getElementById(elementID+"_container").classList.remove("Sector_overview_info_item_score_B")
+        document.getElementById(elementID+"_container").classList.remove("Sector_overview_info_item_score_C")
+        document.getElementById(elementID+"_container").classList.remove("Sector_overview_info_item_score_D")
+        // add new info 
+        if(name !== null){
+            if((score1 !== null) && (score2 !== null)){
+                document.getElementById(elementID).innerText =  name+" ("+Math.round(((Number(score1)+Number(score2))))+")"
+                document.getElementById(elementID+"_container").classList.add("Sector_overview_info_item_score_"+ get_abc_score(((Number(score1)+Number(score2))),"total"))
+            }else{
+                document.getElementById(elementID).innerText =  name
+            }
+        }else{
+            document.getElementById(elementID).innerText =  "Geen info"
+        }
+    }
+    function number_to_readeble(number){
+        let formatter = new Intl.NumberFormat('be-BE', {
+        style: 'currency',
+        currency: 'EUR',
+        });
+        return formatter.format(number); 
+    }
+    function avg_score(score1,score2){
+        if(score1 === "A" && score2 === "A"){
+            return "A"
+        }else if(  ((score1 === "B" && score2 === "A") || (score1 === "A" && score2 === "B")) 
+                                                       || 
+                   ((score1 === "A" && score2 === "C") || (score1 === "C" && score2 === "A")) ){
+            return "B"
+        }else{
+            return "C"
+        }
+    }
+    function get_abc_score(score,type){
+        // type nature / human / total
+        switch(type) {
+            case "nature":
+                if(score>ABC_scores['A'].NaturalcapitalScore) return "A"
+                if(score>ABC_scores['B'].NaturalcapitalScore) return "B"
+                if(score>ABC_scores['C'].NaturalcapitalScore) return "C"
+                return "D"
+                break;
+            case "human":
+                if(score>ABC_scores['A'].HumancapitalScore) return "A"
+                if(score>ABC_scores['B'].HumancapitalScore) return "B"
+                if(score>ABC_scores['C'].HumancapitalScore) return "C"
+                return "D"
+                break;
+            default:
+                if(score>ABC_scores['A'].TotalScore) return "A"
+                if(score>ABC_scores['B'].TotalScore) return "B"
+                if(score>ABC_scores['C'].TotalScore) return "C"
+                return "D"
+               
+        } 
+    }
+   
+</script>
+{% endblock %}
+
+{% block body %}
+<div  class="Sector_overview_container">
+
+    
+    <div class="Sector_overview_table" id="sector_table">Loading... </div>
+    <div class="Sector_overview_info" id="sector_info">
+        <div class="Sector_overview_info_titel_name" id="Info_4_container"> <span id="Info_4">Loading... </span></div>
+
+        <div class="Sector_overview_info_Barrior"></div>
+        
+        <div class="Sector_overview_info_item" id="Info_1_container">Menselijk Kapitaal:<span class="Sector_overview_info_item_score" id="Info_1">Loading... </span></div>
+        <div class="Sector_overview_info_item" id="Info_2_container">Natuurlijk Kapitaal:<span class="Sector_overview_info_item_score" id="Info_2">Loading... </span></div>
+
+        <div class="Sector_overview_info_Barrior"></div>
+
+        <div  class="TODO"> 
+            extra info
+        </div>
+    </div>
+</div>
+{% endblock %}

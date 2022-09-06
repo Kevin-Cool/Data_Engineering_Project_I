@@ -1,0 +1,1023 @@
+{% extends 'base.html' %}
+
+{% block head %}
+<!--suppress JSUnresolvedLibraryURL -->
+<link rel="stylesheet" href="{{ url_for('static',filename='css/KMO.css') }}">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.0/jquery.min.js"></script>
+<script>
+    // data for ui
+    var current_selected = null;
+    var current_selected_kmo_info = null;
+    var opend_search_item = null;
+    // get KMO data
+    var kmo_data = '{{ kmo_data }}'
+    // port data to readeble JSON
+    var kmo_data_clean = kmo_data.replace(/&#34;/g, '"');
+    kmo_data_clean = kmo_data_clean.replace(/&amp;/g, '&');
+    var kmo_data_json = JSON.parse(kmo_data_clean)
+    console.log(kmo_data_json)
+    // get Sector data
+    var sector_data = '{{ sector_data }}'
+    // port data to readeble JSON
+    var sector_data_clean = sector_data.replace(/&#34;/g, '"');
+    var sector_data_json = JSON.parse(sector_data_clean)
+    console.log(sector_data_json)
+    // info for querys 
+    var baseurl = '{{ baseurl }}'
+    baseurl = baseurl.replace("/KMOOverview","")
+    var search_query = null;
+    // get durability keywords 
+    var all_Durability_tags
+    get_all_durabillity_info_item()
+    // ABC scores
+    var ABC_scores_pre = '{{ ABC_scores }}'
+    var ABC_scores_clean = ABC_scores_pre.replace(/&#34;/g, '"');
+    var ABC_scores = JSON.parse(ABC_scores_clean)
+    console.log("ABC_scores")
+    console.log(ABC_scores)
+    //get_ABC_score_info_item()
+    
+
+    // onload function:
+    $(function() {
+        create_table()
+    });
+    function create_table(){
+        //document.getElementById("p1").innerHTML = data;
+        const KMO_overview_table = document.getElementById('kmo_table');
+        KMO_overview_table.innerHTML = "";
+        //console.log(KMO_overview_table)
+
+        const keys = Object.keys(kmo_data_json);
+        for(let i = 0; i < keys.length; i++){
+            //console.log(kmo_data_json[keys[i]])
+            place_kmo(keys[i],KMO_overview_table)
+        };
+    }
+    function place_kmo(key,KMO_overview_table){
+        kmo_data_json[key]["ID"] = key
+        // create kmo item 
+        let kmo = document.createElement("div");
+        kmo.classList.add("KMO_overview_table_item")
+        if((kmo_data_json[key].humancapitalScore === null) || (kmo_data_json[key].naturalcapitalScore === null)){
+            kmo.classList.add("KMO_overview_table_item_score_NONE")
+        }else{
+            kmo.classList.add("KMO_overview_table_item_score_"+get_abc_score(((Number(kmo_data_json[key].humancapitalScore)+Number(kmo_data_json[key].naturalcapitalScore)))),"total")
+        }
+        kmo.setAttribute("id", kmo_data_json[key].ID);
+        kmo.innerText = kmo_data_json[key].name
+        // add onclick event 
+        kmo.addEventListener('click', function(event) {
+            open_kmo_details(kmo_data_json[key])
+        })
+        // add arrow to item 
+        let kmo_arrow = document.createElement("div");
+        kmo_arrow.classList.add("KMO_overview_table_item_arrow")
+        kmo_arrow.innerText = ">"
+        kmo.appendChild(kmo_arrow)
+        //console.log(kmo)
+        KMO_overview_table.appendChild(kmo);
+    }
+    function open_kmo_details(kmo_info){
+        console.log(kmo_info)
+        // make info visable 
+        document.getElementById('kmo_info').style.visibility = "visible";
+        current_selected_kmo_info = kmo_info
+        // unselect pre item 
+        if(current_selected !== null && current_selected.innerText !== kmo_info.naam){
+            current_selected.classList.remove("KMO_overview_table_item_selected")
+        }
+        // if new item was selected
+        if(current_selected == null || current_selected.innerText !== kmo_info.name){
+            // select new item 
+            current_selected = document.getElementById(kmo_info.ID);
+            current_selected.classList.add("KMO_overview_table_item_selected")
+
+            // fill in info 
+            // set name
+            set_name_info_item("Info_4",kmo_info.name,kmo_info.humancapitalScore,kmo_info.naturalcapitalScore)
+            // set scores
+            set_score_info_item("Info_1",kmo_info.humancapitalScore,"human")
+            set_score_info_item("Info_2",kmo_info.naturalcapitalScore,"nature")
+
+            // set general info
+            set_general_info_item("Info_3",kmo_info.ID)
+            set_general_info_item("Info_5",kmo_info.email)
+            set_general_info_item("Info_6",kmo_info.telephone)
+            set_general_info_item("Info_7",kmo_info.website)
+            set_general_info_item("Info_8",kmo_info.workforce)
+            set_general_info_item("Info_12",int_to_boolstr(kmo_info.b2b))
+            // set Sector
+            get_sector_info_item("Info_13",kmo_info.ID)
+            // get extra info
+            // set Location info
+            if(kmo_info.locatie_object === undefined){
+                get_locatie_info(kmo_info.adressID,kmo_info.ID)
+            }else{
+                set_location_info_item("Info_14",kmo_info.locatie_object)
+                get_locatie_info(kmo_info.adressID,kmo_info.ID)
+            }
+            // set Balans info
+            if(kmo_info.balans_object === undefined){
+                get_balans_info(kmo_info.financeID,kmo_info.ID)
+            }else{
+                set_balans_info_item("Info_15",kmo_info.balans_object)
+                get_balans_info(kmo_info.financeID,kmo_info.ID)
+            }
+            
+        }
+
+        // if info is missing go and get it
+    }
+
+
+
+    // funcions for setting KMO info 
+    function set_general_info_item(elementID,text){
+        if((text === null) || (text === 0) || (text === "0")){
+            document.getElementById(elementID).innerText =  "Geen info"
+            document.getElementById(elementID+"_container").classList.add("KMO_overview_info_item_no_info")
+        }else{
+            document.getElementById(elementID).innerText =  text
+            document.getElementById(elementID+"_container").classList.remove("KMO_overview_info_item_no_info")
+        }
+    }
+    function get_ABC_score_info_item(){
+        console.log("URL: "+baseurl+"/GetABCScores")
+        $.ajax({
+            type:"GET",
+            dataType: "json",
+            url:baseurl+"/GetABCScores",
+            success:function(data)
+            {
+                console.log(data)
+                ABC_scores = data
+            },
+            error:function() {
+                console.log("failed to get scores")
+            },
+            timeout: 5000
+        });
+    }
+    function get_sector_info_item(elementID,kmo_ID){
+        console.log("URL: "+baseurl+"/getSectorListInfo/"+kmo_ID)
+        $.ajax({
+            type:"GET",
+            dataType: "json",
+            url:baseurl+"/getSectorListInfo/"+kmo_ID,
+            success:function(data)
+            {
+                console.log(data)
+                set_sector_info_item(elementID,data)
+            },
+            error:function() {
+            set_sector_info_item(elementID,null)
+            },
+            timeout: 5000
+        });
+    }
+    function get_all_durabillity_info_item(){
+        console.log("URL: "+baseurl+"/getAllDurability")
+        $.ajax({
+            type:"GET",
+            dataType: "json",
+            url:baseurl+"/getAllDurability",
+            success:function(data)
+            {
+                console.log(data)
+                all_Durability_tags = data
+            },
+            error:function() {
+                all_Durability_tags = "Failed to get"
+            },
+            timeout: 5000
+        });
+    }
+    function set_sector_info_item(elementID,kmo_sector_list){
+        if(kmo_sector_list === null){
+            document.getElementById(elementID).innerText =  "Geen info"
+        }else{
+            let sector_string = sector_data_json[kmo_sector_list[0].sectorID].name;
+
+            console.log(kmo_sector_list)
+            console.log(kmo_sector_list.lengt)
+            for(let sectorListID in kmo_sector_list){
+                if(sectorListID != 0){
+                    sector_string += ","+ sector_data_json[kmo_sector_list[sectorListID].sectorID].name 
+                }
+            }
+            document.getElementById(elementID).innerText = sector_string
+        }
+    }
+    function set_score_info_item(elementID,score,type){
+        // remove pre colors
+        document.getElementById(elementID+"_container").classList.remove("KMO_overview_info_item_score_A")
+        document.getElementById(elementID+"_container").classList.remove("KMO_overview_info_item_score_B")
+        document.getElementById(elementID+"_container").classList.remove("KMO_overview_info_item_score_C")
+        document.getElementById(elementID+"_container").classList.remove("KMO_overview_info_item_score_D")
+        document.getElementById(elementID+"_container").classList.remove("KMO_overview_info_item_score_NONE")
+        // add new info 
+        if(score === null){
+            document.getElementById(elementID).innerText =  "Geen info"
+            document.getElementById(elementID+"_container").classList.add("KMO_overview_info_item_score_NONE")
+        }else{
+            score_letter = get_abc_score(score,type)
+            document.getElementById(elementID).innerText = score_letter+" ("+ score +")"
+            document.getElementById(elementID+"_container").classList.add("KMO_overview_info_item_score_"+score_letter)
+        }
+    }
+    function set_name_info_item(elementID,name,score1,score2){
+        // remove pre colors
+        document.getElementById(elementID+"_container").classList.remove("KMO_overview_info_item_score_A")
+        document.getElementById(elementID+"_container").classList.remove("KMO_overview_info_item_score_B")
+        document.getElementById(elementID+"_container").classList.remove("KMO_overview_info_item_score_C")
+        document.getElementById(elementID+"_container").classList.remove("KMO_overview_info_item_score_D")
+        // add new info 
+        if(name !== null){
+            if((score1 !== null) && (score2 !== null)){
+                document.getElementById(elementID).innerText =  name+" ("+Math.round(((Number(score1)+Number(score2))))+")"
+                document.getElementById(elementID+"_container").classList.add("KMO_overview_info_item_score_"+ get_abc_score(((Number(score1)+Number(score2))),"total"))
+            }else{
+                document.getElementById(elementID).innerText =  name
+            }
+        }else{
+            document.getElementById(elementID).innerText =  "Geen info"
+        }
+    }
+    function set_location_info_item(elementID,location_object){
+        if(location_object === null){
+            document.getElementById(elementID+"_1").innerHTML = "Geen info"
+            document.getElementById(elementID+"_2").innerHTML = "Geen info"
+            document.getElementById(elementID+"_3").innerHTML = "Geen info"
+            document.getElementById(elementID+"_container").classList.add("KMO_overview_info_item_no_info")
+        }else{
+            document.getElementById(elementID+"_container").classList.remove("KMO_overview_info_item_no_info")
+            document.getElementById(elementID+"_1").innerHTML = location_object.street
+            document.getElementById(elementID+"_2").innerHTML = location_object.zipcode
+            document.getElementById(elementID+"_3").innerHTML = location_object.municipalityName
+        }
+    }
+    function set_balans_info_item(elementID,balans_object){
+        if(balans_object === null){
+            document.getElementById(elementID+"_2").innerHTML = "Geen info"
+            document.getElementById(elementID+"_3").innerHTML = "Geen info"
+            document.getElementById(elementID+"_4").innerHTML = "Geen info"
+            document.getElementById(elementID+"_container").classList.add("KMO_overview_info_item_no_info")
+        }else{
+            document.getElementById(elementID+"_container").classList.remove("KMO_overview_info_item_no_info")
+            document.getElementById(elementID+"_2").innerHTML = number_to_readeble(balans_object.turnover)
+            document.getElementById(elementID+"_3").innerHTML = number_to_readeble(balans_object.totalAssets)
+            document.getElementById(elementID+"_4").innerHTML = number_to_readeble(balans_object.netValueAdded) 
+        }
+    }
+    function number_to_readeble(number){
+        let formatter = new Intl.NumberFormat('be-BE', {
+        style: 'currency',
+        currency: 'EUR',
+        });
+        return formatter.format(number); 
+    }
+    function get_locatie_info(adress_ID,kmo_ID){
+        if(adress_ID === null){
+            document.getElementById("Info_14").innerText =  "Geen info"
+        }else{
+            console.log("URL: "+baseurl+"/getLocationInfo/"+adress_ID)
+            $.ajax({
+               type:"GET",
+               dataType: "json",
+               //data:{LocationID: ID},
+               url:baseurl+"/getLocationInfo/"+adress_ID,
+               success:function(data)
+               {
+                    console.log(data)
+                    //console.log(data[0])
+                    set_location_info_item("Info_14",data[0])
+                    kmo_data_json[kmo_ID].locatie_object = data[0]
+               },
+               error:function() {
+                    set_location_info_item("Info_14",null)
+               },
+               timeout: 5000
+            });
+        }
+    }
+    function get_balans_info(balans_ID,kmo_ID){
+        if(balans_ID === null){
+            document.getElementById("Info_15").innerText =  "Geen info"
+        }else{
+            console.log("URL: "+baseurl+"/getBalansInfo/"+balans_ID)
+            $.ajax({
+               type:"GET",
+               dataType: "json",
+               //data:{LocationID: ID},
+               url:baseurl+"/getBalansInfo/"+balans_ID,
+               success:function(data)
+               {
+                    console.log(data)
+                    //console.log(data[0])
+                    set_balans_info_item("Info_15",data[0])
+                    kmo_data_json[kmo_ID].balans_object = data[0]
+               },
+               error:function() {
+                    set_balans_info_item("Info_15",null)
+               },
+               timeout: 5000
+            });
+        }
+    }
+    function get_abc_score(score,type){
+        // type nature / human / total
+        switch(type) {
+            case "nature":
+                if(score>ABC_scores['A'].NaturalcapitalScore) return "A"
+                if(score>ABC_scores['B'].NaturalcapitalScore) return "B"
+                if(score>ABC_scores['C'].NaturalcapitalScore) return "C"
+                return "D"
+                break;
+            case "human":
+                if(score>ABC_scores['A'].HumancapitalScore) return "A"
+                if(score>ABC_scores['B'].HumancapitalScore) return "B"
+                if(score>ABC_scores['C'].HumancapitalScore) return "C"
+                return "D"
+                break;
+            default:
+                if(score>ABC_scores['A'].TotalScore) return "A"
+                if(score>ABC_scores['B'].TotalScore) return "B"
+                if(score>ABC_scores['C'].TotalScore) return "C"
+                return "D"
+               
+        } 
+    }
+    function int_to_boolstr(int){
+        if(int == 0) return "Niet B2B"
+        return "Wel B2B"
+    }
+    
+
+
+
+
+
+    // Search bar functions
+    var temp_selected_attribute = null;
+    function open_filter_overlag(){
+        document.getElementById("search_backdrop").style.visibility = "visible";
+        reset_filter_overlay();
+        document.getElementById("attribute").selectedIndex = 0;
+    }
+    function close_filter_overlag(element){
+        element.style.visibility = "hidden";
+        
+    }
+    function close_filter(){
+        document.getElementById("search_backdrop").style.visibility = "hidden";
+    }
+    function reset_filter_overlay(){
+        let select2 = document.getElementById("select2");
+        if(select2 !== null) select2.remove();
+        reset_filter3()
+    }
+    function reset_filter3(){
+        let select3 = document.getElementById("select3");
+        if(select3 !== null) select3.remove();
+        document.getElementById("filter_add").disabled = true; 
+        document.getElementById("filter_add").classList.add("KMO_overview_search_filter_button_gray")
+    }
+    function stop_child_from_inhereting_onclick(e){
+        e.stopPropagation()
+        // do nothing
+    }
+    function attribute_selected(element){
+        //console.log(element.options[element.selectedIndex].text);
+        // try to reset next select 
+        reset_filter_overlay()
+        // add new select 
+        temp_selected_attribute = element.options[element.selectedIndex].value
+        if((["Menselijk Kapitaal","Natuurlijk Kapitaal","Omzet","Balanstotaal","Netto Toegevoegde Waarde","Aantal werknemers"]).some(bool => temp_selected_attribute === bool)){//temp_selected_attribute
+            // add number/score select
+            let new_select = document.createElement("select");
+            new_select.classList.add("KMO_overview_search_filter_item")
+            new_select.setAttribute("id", "select2");
+            // add onclick event 
+            new_select.addEventListener('change', function() {
+                number_score_select(this)
+            })
+
+            // addoptions
+            new_select.add(create_option_element(false,"select:","0"))
+            new_select.add(create_option_element(false,">=",">="))
+            new_select.add(create_option_element(false,"<=","<="))
+            new_select.add(create_option_element(false,"=","="))
+            //appendChild
+            document.getElementById("search_filter_container").appendChild(new_select)
+        }else if(temp_selected_attribute === "B2B"){
+            // add bool select
+            let new_select = document.createElement("select");
+            new_select.classList.add("KMO_overview_search_filter_item")
+            new_select.setAttribute("id", "select2");
+            new_select.addEventListener('change', function() {
+                bool_select(this)
+            })
+            // addoptions
+            new_select.add(create_option_element(false,"IS:","IS"))
+            //appendChild
+            document.getElementById("search_filter_container").appendChild(new_select)
+            // run select 
+            bool_select(new_select)
+            last_selected()
+        }else{
+            // add text select   
+            let new_select = document.createElement("select");
+            new_select.classList.add("KMO_overview_search_filter_item")
+            new_select.setAttribute("id", "select2");
+            // add onclick event 
+            new_select.addEventListener('change', function() {
+                text_select(this)
+            })
+
+            // addoptions
+            new_select.add(create_option_element(true,"select:","0"))
+            new_select.add(create_option_element(false,"Contains:","Contains"))
+            new_select.add(create_option_element(false,"Starts with:","Starts with"))
+            new_select.add(create_option_element(false,"Ends with:","Ends with"))
+            new_select.add(create_option_element(false,"Matches:","Matches"))
+            //new_select.add(create_option_element(false,"Order By:","Order By"))
+            //appendChild
+            document.getElementById("search_filter_container").appendChild(new_select)
+        }
+    }
+    function number_score_select(element){
+        // try reset nex select 
+        reset_filter3()
+        // add new select 
+        console.log(element.options[element.selectedIndex].text);
+        document.getElementById("search_filter_container").appendChild(create_input_element())
+       
+    }
+    function bool_select(element){
+        // try reset nex select 
+        reset_filter3()
+        // create bool select
+        let new_select = document.createElement("select");
+        new_select.classList.add("KMO_overview_search_filter_item")
+        new_select.setAttribute("id", "select3");
+        new_select.addEventListener('change', function() {
+            last_selected()
+        })
+        new_select.add(create_option_element(false,"True","True"))
+        new_select.add(create_option_element(false,"False","False"))
+
+        document.getElementById("search_filter_container").appendChild(new_select)
+
+    }
+    function text_select(element){
+        // try reset nex select 
+        reset_filter3()
+        // try add new select 
+        console.log(element.options[element.selectedIndex].text);
+        let selected_filter = element.options[element.selectedIndex].value
+        if(selected_filter === "Order By"){
+            // if order by
+            let new_select = document.createElement("select");
+            new_select.classList.add("KMO_overview_search_filter_item")
+            new_select.setAttribute("id", "select3");
+            // add onclick event 
+            new_select.addEventListener('change', function() {
+                score_select(this)
+            })
+
+            // add options
+            new_select.add(create_option_element(true,"select:","0")) 
+            new_select.add(create_option_element(false,"Ascending","Ascending"))
+            new_select.add(create_option_element(false,"Descending","Descending"))
+
+            document.getElementById("search_filter_container").appendChild(new_select)
+        }else{
+            // if text
+            document.getElementById("search_filter_container").appendChild(create_input_element())
+        }
+    }
+    function create_input_element(){
+        let new_input = document.createElement("input");
+        new_input.classList.add("KMO_overview_search_filter_item")
+        new_input.setAttribute("id", "select3");
+        // add onclick event 
+        new_input.addEventListener('blur', function() {
+            leave_filter_input(this)
+        })
+        new_input.addEventListener('keyup', function() {
+            leave_filter_input(this)
+        })
+        return new_input
+    }
+    function create_option_element(dis,text,value){
+        let option_element =  document.createElement("option");
+        if(dis) {
+            option_element.disabled = true
+            option_element.selected = true
+        }
+        option_element.text = text
+        option_element.value = value
+        return option_element
+    }
+    function leave_filter_input(element){
+        //console.log("leave")
+        if(element.value.length>0){
+            console.log("text ")
+            last_selected()
+        }else{
+            console.log("notext ")
+        }
+    }
+    function score_select(element){
+        //console.log(element.options[element.selectedIndex].text);
+        last_selected()
+    }
+    function last_selected(){
+        //console.log("can add")
+        document.getElementById("filter_add").disabled = false; 
+        document.getElementById("filter_add").classList.remove("KMO_overview_search_filter_button_gray")
+    }
+    function finish_creating_filter(){
+        //console.log("add")
+        let attribute = temp_selected_attribute;
+        let select2 = document.getElementById("select2").options[document.getElementById("select2").selectedIndex].value;
+        let select3;
+        if(document.getElementById("select3").options !== undefined){
+            select3 = document.getElementById("select3").options[document.getElementById("select3").selectedIndex].value;
+        }else{
+            select3 = document.getElementById("select3").value;
+        }
+       
+        // add new filter to filter object 
+        if(search_query == null){
+            search_query = {"placeholder":"ignore me"}
+        }
+        search_query[attribute] = {"Type":select2,"input":select3}
+        // add new filter to ui list and enable search
+        update_filter_list()
+        // close filter screen 
+        close_filter()
+    }
+    function update_filter_list(){
+        // clear container 
+        document.getElementById("chosen_filters").innerHTML = " "; 
+        // check if filter items can be shown 
+        const keys = Object.keys(search_query);
+        console.log(search_query)
+        if(keys.length>0){
+            // add all filter items
+            for(let i = 0; i < keys.length; i++){
+                if(keys[i] !== "placeholder"){
+                    // add item 
+                    document.getElementById("chosen_filters").appendChild(create_filter_item(keys[i],search_query[keys[i]]))
+                }
+            };
+            document.getElementById("start_search").disabled = false; 
+            document.getElementById("start_search").classList.remove("KMO_overview_search_filter_button_gray")
+        }else{ 
+            // add no filter items overlay
+            let empty_banner =  document.createElement("div");
+            empty_banner.classList.add("KMO_overview_search_right_empty")
+            empty_banner.innerHTML = "No filters chosen"
+            document.getElementById("chosen_filters").appendChild(empty_banner)
+        }
+    }
+    function create_filter_item(attribute,filter_object){
+        console.log(filter_object)
+        let filter_element =  document.createElement("div");
+        filter_element.classList.add("KMO_overview_search_right_filter_item")
+        filter_element.innerText = attribute+" "+filter_object.Type +" "+ filter_object.input
+        // add onclick 
+        filter_element.addEventListener('click', function() {
+            remove_filter_item(attribute)
+        })
+        // add check?
+        return filter_element
+    }
+    function remove_filter_item(Key){
+        delete search_query[Key]; 
+        update_filter_list()
+    }
+
+    async function do_search(){
+        delete search_query["placeholder"]; 
+        console.log(search_query)
+        console.log("URL: "+baseurl+"/search/KMO")
+      
+        const response = await fetch(baseurl+"/search/KMO", {
+        method: 'POST',
+        body: JSON.stringify(search_query), 
+        headers: {'Content-Type': 'application/json'}
+        });
+        const myJson = await response.json(); //extract JSON from the http response
+        console.log(myJson)
+        // check if order
+
+        // reset view
+        kmo_data_json = myJson
+        document.getElementById('kmo_info').style.visibility = "hidden";
+        create_table()
+    }
+
+    // duurzaamheid functie
+    function open_durability_overlay(){
+        document.getElementById("durability_backdrop").style.visibility = "visible";
+        // get this kmo's durabilitie items
+        get_kmo_durability_tags(current_selected_kmo_info.ID)
+    }
+    function prepare_durability_data(kmo_keywords){
+        unique_kmo_terms = []
+        // make list of unique tags 
+        const keys = Object.keys(kmo_keywords);
+        for(let i = 0; i < keys.length; i++){
+            if(!(unique_kmo_terms.some(item => item.Term === kmo_keywords[keys[i]].Term))){
+                unique_kmo_terms.push({Term:kmo_keywords[keys[i]].Term})
+            }
+        };
+        console.log("unique_kmo_tags")
+        console.log(unique_kmo_terms)
+        fill_durability_overlay(unique_kmo_terms,kmo_keywords)
+    }
+    function fill_durability_overlay(unique_kmo_terms,kmo_keywords){
+        console.log(current_selected_kmo_info)
+        // clear the element
+        document.getElementById("durability_container").innerHTML = "";
+        // create headers
+        // titel 
+        let titel_name = document.createElement("div");
+        titel_name.innerText = current_selected_kmo_info.name
+        titel_name.classList.add("KMO_overview_durability_titel")
+        document.getElementById("durability_container").appendChild(titel_name)
+        // add grid 
+        let durability_grid = document.createElement("div");
+        durability_grid.classList.add("KMO_overview_durability_grid")
+        // sub titels
+        let titel_Humancapital = document.createElement("div");
+        titel_Humancapital.innerText = "Humancapital"+"\n"+"Total score: "+ "LOADING..."
+        titel_Humancapital.setAttribute("id", "Humancapital_titel");
+        titel_Humancapital.classList.add("KMO_overview_durability_item_titel") 
+        titel_Humancapital.classList.add("KMO_overview_durability_item_titel_1")
+        durability_grid.appendChild(titel_Humancapital)
+        
+        let titel_Naturalcapital = document.createElement("div");
+        titel_Naturalcapital.innerText = "Naturalcapital"+"\n"+"Total score: "+ "LOADING..."
+        titel_Naturalcapital.setAttribute("id", "Naturalcapital_titel");
+        titel_Naturalcapital.classList.add("KMO_overview_durability_item_titel")
+        titel_Naturalcapital.classList.add("KMO_overview_durability_item_titel_2")
+        durability_grid.appendChild(titel_Naturalcapital)
+
+        // build the durabillity item list 
+        tag_list = get_all_unique_durability_terms(all_Durability_tags)
+        console.log("tag_list")
+        console.log(tag_list)
+        placed = true
+        temp_index = 1
+        left_index = 0
+        right_index = 0
+        humanscore = 0
+        naturescore = 0
+        while(placed){
+            if((temp_index == 1) || (temp_index == 2) || (temp_index == 3)){
+                current_item = tag_list[0][left_index]
+                if(current_item != null){
+                    let temp_item = document.createElement("div");
+                    temp_item.innerText = current_item.name
+                    temp_item.classList.add("KMO_overview_durability_item")
+                    temp_item.classList.add("KMO_item_genaric_hover")
+                    if(unique_kmo_terms.some(item => item.Term === current_item.name)){
+                        temp_item.classList.add("KMO_overview_durability_item_active")
+                        humanscore++;
+                    }
+                    let temp_current_item = current_item // else the next item wil override this onclick event somehow
+                    temp_item.addEventListener('click', function(event) {
+                        open_kmo_keywordlist(temp_current_item,kmo_keywords)
+                    })
+                    durability_grid.appendChild(temp_item)
+                }else{
+                    let temp_item = document.createElement("div");
+                    temp_item.innerText = "filler"
+                    temp_item.classList.add("KMO_overview_durability_item_invis")
+                    durability_grid.appendChild(temp_item)
+                }
+                temp_index++;
+                left_index++;
+            }else if((temp_index == 4) || (temp_index == 5) || (temp_index == 6)){
+                current_item = tag_list[1][right_index]
+                if(current_item != null){
+                    let temp_item = document.createElement("div");
+                    temp_item.innerText = current_item.name
+                    temp_item.classList.add("KMO_overview_durability_item")
+                    temp_item.classList.add("KMO_item_genaric_hover")
+                    if(unique_kmo_terms.some(item => item.Term === current_item.name)){
+                        temp_item.classList.add("KMO_overview_durability_item_active")
+                        naturescore++;
+                    }
+                    let temp_current_item = current_item // else the next item wil override this onclick event somehow
+                    temp_item.addEventListener('click', function(event) {
+                        open_kmo_keywordlist(temp_current_item,kmo_keywords)
+                    })
+                    durability_grid.appendChild(temp_item)
+                }else{
+                    let temp_item = document.createElement("div");
+                    temp_item.innerText = "filler"
+                    temp_item.classList.add("KMO_overview_durability_item_invis")
+                    durability_grid.appendChild(temp_item)
+                }
+                temp_index++;
+                right_index++;
+            }else if(temp_index == 7){
+                console.log("temp_index 7")
+                next_item_left = tag_list[0][left_index]
+                next_item_right = tag_list[1][right_index]
+                if((next_item_left == null) && (next_item_right == null)){
+                    placed=false
+                }else{
+                    temp_index = 1
+                }
+            }
+        }
+
+        // add fully build grid  
+        document.getElementById("durability_container").appendChild(durability_grid)
+        document.getElementById("Humancapital_titel").innerText = "Humancapital"+"\n"+"Total score: "+ humanscore
+        document.getElementById("Naturalcapital_titel").innerText = "Naturalcapital"+"\n"+"Total score: "+ naturescore
+
+    }
+    function get_all_unique_durability_terms(key_list_object){
+        term_list_Naturalcapital = [] 
+        term_list_Humancapital = [] 
+        const keys = Object.keys(key_list_object);
+        for(let i = 0; i < keys.length; i++){
+            // Humancapital
+            if(key_list_object[keys[i]].Category === "Humancapital"){
+                if(!(term_list_Humancapital.some(item => item.name === key_list_object[keys[i]].Term))){
+                    term_list_Humancapital.push({name:key_list_object[keys[i]].Term, Description:key_list_object[keys[i]].Description, Category:key_list_object[keys[i]].Category, KeyWordID:key_list_object[keys[i]].KeyWordID})
+                }
+            }else{
+                if(!(term_list_Naturalcapital.some(item => item.name === key_list_object[keys[i]].Term))){
+                    term_list_Naturalcapital.push({name:key_list_object[keys[i]].Term, Description:key_list_object[keys[i]].Description, Category:key_list_object[keys[i]].Category, KeyWordID:key_list_object[keys[i]].KeyWordID})
+                }
+            }
+        };
+        return [term_list_Humancapital,term_list_Naturalcapital]
+    }
+    function get_kmo_durability_tags(kmo_ID){
+        console.log("URL: "+baseurl+"/getDurabilityByID/"+kmo_ID)
+        $.ajax({
+            type:"GET",
+            dataType: "json",
+            //data:{LocationID: ID},
+            url:baseurl+"/getDurabilityByID/"+kmo_ID,
+            success:function(data)
+            {
+                console.log(data)
+                prepare_durability_data(data)
+            },
+            error:function() {
+               console.log("Failed to get getDurabilityByID")
+            },
+            timeout: 5000
+        });  
+    }
+    function open_kmo_keywordlist(clicked_tag,kmo_keywords){
+        console.log("clicked_tag")
+        console.log(clicked_tag)
+        document.getElementById("durability_tags_backdrop").style.visibility = "visible";
+        //document.getElementById("durability_tags_container").innerHTML = "";
+        document.getElementById("durability_tags_container_titel").innerHTML = clicked_tag.name;
+        document.getElementById("durability_tags_container_description").innerHTML = "Description:"+"\n"+ clicked_tag.Description;
+        let relevent_kmo_keywords = []
+        console.log("kmo_keywords")
+        console.log(kmo_keywords)
+        
+        const keys = Object.keys(kmo_keywords);
+        for(let i = 0; i < keys.length; i++){
+            if(kmo_keywords[keys[i]].Term == clicked_tag.name){
+                relevent_kmo_keywords.push(kmo_keywords[keys[i]])
+            }
+        };
+        console.log("relevent_kmo_keywords")
+        console.log(relevent_kmo_keywords)
+
+        document.getElementById("durability_tags_container_container").innerHTML = "";
+        
+        for(let i = 0; i < relevent_kmo_keywords.length; i++){
+            let temp_key_overview = document.createElement("div");
+            temp_key_overview.classList.add("KMO_overview_durability_key_item_holder")
+            // add/create left side 
+            let temp_key_overview_left = document.createElement("div");
+            temp_key_overview_left.innerText = relevent_kmo_keywords[i].Keyword
+            temp_key_overview_left.classList.add("KMO_overview_durability_key_item_left")
+            temp_key_overview.appendChild(temp_key_overview_left)
+            // add/create right side 
+            let temp_key_overview_right = document.createElement("div");
+            temp_key_overview_right.innerText = relevent_kmo_keywords[i].context
+            temp_key_overview_right.classList.add("KMO_overview_durability_key_item_right")
+            temp_key_overview.appendChild(temp_key_overview_right)
+            // add full item to list 
+            document.getElementById("durability_tags_container_container").appendChild(temp_key_overview)
+        };
+    }
+    function close_durability_overlag(element){
+        element.style.visibility = "hidden";
+    }
+    function close_durability_tags_overlag(element){
+        element.style.visibility = "hidden";
+    }
+
+
+    function open_employees_overlay(){
+        document.getElementById("employees_backdrop").style.visibility = "visible";
+        // get this kmo's durabilitie items
+        get_kmo_employees_info(current_selected_kmo_info.ID)
+    }
+    
+    function get_kmo_employees_info(kmo_ID){
+        console.log("URL: "+baseurl+"/getEmployeesByID/"+kmo_ID)
+        $.ajax({
+            type:"GET",
+            dataType: "json",
+            //data:{LocationID: ID},
+            url:baseurl+"/getEmployeesByID/"+kmo_ID,
+            success:function(data)
+            {
+                console.log(data)
+                prepare_employees_data(data)
+            },
+            error:function() {
+               console.log("Failed to get getEmployeesByID")
+            },
+            timeout: 5000
+        });  
+    }
+    function prepare_employees_data(employees_data){
+        const keys = Object.keys(employees_data);
+        document.getElementById("employees_tags_container_container").innerHTML = ""
+        for(let i = 0; i < keys.length; i++){
+            // create container 
+            let temp_item_container = document.createElement("div");
+            temp_item_container.classList.add("KMO_overview_employees_item_container")
+            // create left, text item 
+            let temp_item_left = document.createElement("div");
+            temp_item_left.innerText = employees_data[keys[i]].columnText
+            temp_item_left.classList.add("KMO_overview_employees_item_left")
+            // create right, number 3
+            let temp_item_right3 = document.createElement("div");
+            temp_item_right3.innerText = employees_data[keys[i]].total
+            temp_item_right3.classList.add("KMO_overview_employees_item_right")
+            // create right, number 2
+            let temp_item_right2 = document.createElement("div");
+            temp_item_right2.innerText = employees_data[keys[i]].parttime
+            temp_item_right2.classList.add("KMO_overview_employees_item_right")
+            // create right, number 1
+            let temp_item_right1 = document.createElement("div");
+            temp_item_right1.innerText = employees_data[keys[i]].fulltime
+            temp_item_right1.classList.add("KMO_overview_employees_item_right")
+
+            // add items to container and add container to element
+            temp_item_container.appendChild(temp_item_left)
+            temp_item_container.appendChild(temp_item_right3)
+            temp_item_container.appendChild(temp_item_right2)
+            temp_item_container.appendChild(temp_item_right1)
+            document.getElementById("employees_tags_container_container").appendChild(temp_item_container)
+
+
+            //let temp_item = document.createElement("div");
+            //temp_item.innerText = employees_data[keys[i]].columnText + " - " + employees_data[keys[i]].fulltime + " - " + employees_data[keys[i]].parttime + " - " + employees_data[keys[i]].total
+            //temp_item.classList.add("KMO_overview_durability_item")
+            //document.getElementById("employees_tags_container_container").appendChild(temp_item)
+        };
+
+
+       
+    }
+
+</script>
+{% endblock %}
+
+{% block body %}
+<div  class="KMO_overview_container">
+    <div class="KMO_overview_search_filter_back" id="durability_backdrop" onclick="close_durability_overlag(this)"> 
+        <div class="KMO_overview_durability_container" id="durability_container" onclick="stop_child_from_inhereting_onclick(event)">
+                LOADING...
+        </div>
+    </div>
+    <div class="KMO_overview_search_filter_back" id="durability_tags_backdrop" onclick="close_durability_tags_overlag(this)"> 
+        <div class="KMO_overview_durability_tags_container" id="durability_tags_container" onclick="stop_child_from_inhereting_onclick(event)">
+            <div class="KMO_overview_durability_tags_titel"  id="durability_tags_container_titel"> Generating... </div>
+            <div class="KMO_overview_durability_tags_titel"  id="durability_tags_container_description"> Generating... </div>
+            <div class="KMO_overview_durability_key_item_holder"> 
+                <div class="KMO_overview_durability_key_item_left KMO_overview_durability_key_item_top"> 
+                    Key word:
+                </div>
+                <div class="KMO_overview_durability_key_item_right KMO_overview_durability_key_item_top"> 
+                    Context:
+                </div>
+            </div>
+            <div class="KMO_overview_durability_tags_container_key_container"  id="durability_tags_container_container"> Generating... </div>
+        </div>
+    </div>
+   
+    <div class="KMO_overview_search_filter_back" id="employees_backdrop" onclick="close_durability_tags_overlag(this)"> 
+        <div class="KMO_overview_durability_tags_container" id="employees_container" onclick="stop_child_from_inhereting_onclick(event)">
+            <div class="KMO_overview_employees_item_container"> 
+                <div class="KMO_overview_employees_item_left">Categorie:</div>
+                <div class="KMO_overview_employees_item_right">Totaal</div>
+                <div class="KMO_overview_employees_item_right">Deeltijds</div>
+                <div class="KMO_overview_employees_item_right">Voltijds</div>
+                
+            </div>
+            <div class="KMO_overview_durability_tags_container_key_container"  id="employees_tags_container_container"> Loading... </div>
+        </div>
+    </div>
+
+
+    <div class="KMO_overview_search_filter_back" id="search_backdrop" onclick="close_filter_overlag(this)"> 
+        <div class="KMO_overview_search_filter_container" id="search_filter_container" onclick="stop_child_from_inhereting_onclick(event)">
+
+            <select id="attribute" class="KMO_overview_search_filter_item" onchange="attribute_selected(this)">
+                <option disabled selected value> -- select an option -- </option>
+                <option value="Naam">Naam</option>
+                <option value="Menselijk Kapitaal">Menselijk Kapitaal</option>
+                <option value="Natuurlijk Kapitaal">Natuurlijk Kapitaal</option>
+                <option value="Ondernemings nummer">Ondernemings nummer</option>
+                <option value="Email">Email</option>
+                <option value="Telefoon nummer">Telefoon nummer</option>
+                <option value="WebAdres">WebAdres</option>
+                <option value="Aantal werknemers">Aantal werknemers</option> 
+                
+                <option value="B2B">B2B</option>
+                <option value="Sector">Sector</option>
+                <option value="Adres">Adres</option>
+                <option value="Postcode">Postcode</option>
+                <option value="Gemente">Gemente</option>
+                <option value="Omzet">Omzet</option>
+                <option value="Balanstotaal">Balanstotaal</option>
+                <option value="Netto Toegevoegde Waarde">Netto Toegevoegde Waarde</option>
+            </select>
+
+            <div class="KMO_overview_search_filter_button_conainer">
+                <button id="filter_add"  class="KMO_overview_search_filter_button KMO_overview_search_filter_button_gray"  onclick="finish_creating_filter()" >Add</button>
+                <button class="KMO_overview_search_filter_button"  onclick="close_filter(this)" >Cancel</button>
+            </div>
+        </div>
+    </div>
+  
+
+
+    <div class="KMO_overview_search" id="kmo_search">
+        <div  class="KMO_overview_search_left" >
+            <button class="KMO_overview_search_button" id="show_filter" onclick="open_filter_overlag()">Add filter</button>
+            <button class="KMO_overview_search_button KMO_overview_search_filter_button_gray" id="start_search" onclick="do_search()" disabled>Search</button>
+        </div>
+        <div  class="KMO_overview_search_right"  id="chosen_filters">
+            <div  class="KMO_overview_search_right_empty"> No filters chosen </div>
+        </div>
+    </div>
+    <div class="KMO_overview_table" id="kmo_table">Loading... </div>
+    <div class="KMO_overview_info" id="kmo_info">
+        <div class="KMO_overview_info_titel_name" id="Info_4_container"> <span id="Info_4">Loading... </span></div>
+
+        <div class="KMO_overview_info_Barrior"></div>
+        
+        <div class="KMO_overview_info_item KMO_item_genaric_hover" id="Info_1_container" onclick="open_durability_overlay()">Menselijk Kapitaal:
+            <div class="KMO_overview_info_item_info">Click for more info!</div>
+            <span class="KMO_overview_info_item_score" id="Info_1">Loading... </span>
+        </div>
+        <div class="KMO_overview_info_item KMO_item_genaric_hover" id="Info_2_container" onclick="open_durability_overlay()">Natuurlijk Kapitaal:
+            <div class="KMO_overview_info_item_info">Click for more info!</div>
+            <span class="KMO_overview_info_item_score" id="Info_2">Loading... </span>
+        </div>
+
+        <div class="KMO_overview_info_Barrior"></div>
+
+        <div  class="KMO_overview_info_details"> 
+            <div class="KMO_overview_info_item" id="Info_3_container">Ondernemings nummer: <br><span id="Info_3">Loading... </span></div>
+            <div class="KMO_overview_info_item" id="Info_5_container">Email: <br><span id="Info_5">Loading... </span></div>
+            <div class="KMO_overview_info_item" id="Info_6_container">TelefoonNr: <br><span id="Info_6">Loading... </span></div>
+            <div class="KMO_overview_info_item" id="Info_7_container">WebAdres: <br><span id="Info_7">Loading... </span></div>
+            <div class="KMO_overview_info_item KMO_item_genaric_hover" id="Info_8_container"  onclick="open_employees_overlay()">
+                <div class="KMO_overview_info_item_info">Click for more info!</div>
+                Aantal werknemers: <br><span id="Info_8">Loading... </span>
+            </div>
+            
+            <div class="KMO_overview_info_item" id="Info_12_container" >B2B: <br><span id="Info_12">Loading... </span></div>
+            <div class="KMO_overview_info_item" id="Info_13_container">Sector beschrijving: <br><span id="Info_13">Loading... </span></div>
+            
+            <div class="KMO_overview_info_item KMO_overview_info_item_complex_1" id="Info_14_container">
+                <div class="KMO_overview_info_item_complex_item">Adres: <span  id="Info_14_1"> </span> </div>
+                <div class="KMO_overview_info_item_complex_item">Postcode: <span  id="Info_14_2"> </span> </div>
+                <div class="KMO_overview_info_item_complex_item">Gemente: <span  id="Info_14_3"> </span> </div>
+            </div>
+
+            <div class="KMO_overview_info_item KMO_overview_info_item_complex_2" id="Info_15_container">
+                <div class="KMO_overview_info_item_complex_item">Omzet: <span  id="Info_15_2"> </span> </div>
+                <div class="KMO_overview_info_item_complex_item">Balanstotaal: <span  id="Info_15_3"> </span> </div>
+                <div class="KMO_overview_info_item_complex_item">Netto Toegevoegde Waarde: <span  id="Info_15_4"> </span> </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

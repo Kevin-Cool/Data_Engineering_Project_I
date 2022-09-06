@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block head %}
+<!--suppress JSUnresolvedLibraryURL -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.0/jquery.min.js"></script>
+<script>
+    var baseurl = '{{ baseurl }}'
+    var DataTimeout;
+    var data = {
+            current: []
+        };
+
+    $(document).ready(function () {
+
+        const source = new EventSource(baseurl+"/GetProgress");
+
+        source.onmessage = function (event) {
+            const newdata = JSON.parse(event.data);
+            console.log(newdata)
+            if(data.current.length>10){
+                data.current.shift()
+            }
+
+            data.current.push(newdata);
+            updateTable();
+        }
+    });
+
+    function updateTable(){
+        const table = document.getElementById('tableID');
+            document.getElementById('tableID').innerHTML = "";
+            data.current.forEach((value) => {
+                document.getElementById('tableID').innerHTML+= "<tr>"
+                +"<td> time:" +value.time+"</td>"
+                +"<td> value:" +value.value+"</td>"
+                +"</tr>"
+            })
+    }
+    
+    $(function(){
+        $('#StartButtonID').click(function() {
+            document.getElementById('UpdateID').innerHTML = "Sending request"
+            $.ajax({
+                url: baseurl+"/StartProgress",
+                error: function(){
+                    document.getElementById('UpdateID').innerHTML = "Process started"
+                },
+                success: function(){
+                    document.getElementById('UpdateID').innerHTML = "Already running"
+                },
+                timeout: 500 
+            });
+
+        });
+    });
+</script>
+{% endblock %}
+
+{% block body %}
+<h1>Import page</h1>
+<input type="button" id="StartButtonID" value="Update" />
+
+<p id="UpdateID"> click update to start the scraping of the excel </p>
+<table id="tableID" border = 1>
+    
+</table>
+{% endblock %}

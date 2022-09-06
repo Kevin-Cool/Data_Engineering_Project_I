@@ -1,0 +1,137 @@
+DELIMITER $$
+
+CREATE PROCEDURE insertAdress(IN zipcodeIN int, IN streetIN varchar(64), IN municipalityNameIN varchar(64), OUT LASTID int)
+BEGIN
+    DECLARE `_rollback` BOOL DEFAULT 0;
+    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET `_rollback` = 1;
+    START TRANSACTION;
+    
+	INSERT INTO  scrape.municipality (zipcode,name) VALUES (zipcodeIN,municipalityNameIN);
+	SELECT LAST_INSERT_ID() INTO LASTID;
+    
+    IF `_rollback` THEN
+        ROLLBACK;
+    ELSE
+        COMMIT;
+    END IF;
+END$$
+
+DELIMITER ;
+
+///////
+
+set @test := 0;
+call insertAdress(1,"test","test",@test);
+
+select @test;
+
+///////
+
+DELIMITER $$
+
+CREATE PROCEDURE insertAdress(IN zipcodeIN int, IN streetIN varchar(64), IN municipalityNameIN varchar(64))
+BEGIN
+    DECLARE `_rollback` BOOL DEFAULT 0;
+    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET `_rollback` = 1;
+    START TRANSACTION;
+    
+	INSERT INTO  scrape.municipality (zipcode,name) VALUES (zipcodeIN,municipalityNameIN);
+	SELECT LAST_INSERT_ID() into @last_ID ;
+	INSERT INTO scrape.adress (street,zipcode) VALUES (streetIN,@last_ID);
+    
+    IF `_rollback` THEN
+        ROLLBACK;
+    ELSE
+        COMMIT;
+    END IF;
+END$$
+
+DELIMITER ;
+
+////////
+
+DELIMITER $$
+
+CREATE PROCEDURE insertAdress(
+	IN kmo_name varchar(64), IN nr_person varchar(64), IN telephone varchar(64), IN email varchar(64), IN kmo_ID varchar(64), IN kmo_webadress varchar(64),
+    IN streetIN varchar(64), IN zipcodeIN varchar(64),
+    IN omzet varchar(64), IN total_value varchar(64), IN netto_toe varchar(64)
+)
+BEGIN
+    DECLARE `_rollback` BOOL DEFAULT 0;
+    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET `_rollback` = 1;
+    START TRANSACTION;
+    
+	INSERT INTO scrape.adress (street,zipcode) VALUES (streetIN,zipcodeIN);
+    SELECT LAST_INSERT_ID() into @adress_ID ;
+	INSERT INTO scrape.finance (turnover,totalAssets,netValueAdded) VALUES (omzet,total_value,netto_toe);
+    SELECT LAST_INSERT_ID() into @finance_ID ;
+	INSERT INTO scrape.kmo (ID,name,email,workforce,telephone,website,adressID,financeID,b2b) VALUES (kmo_ID,kmo_name,email,nr_person,telephone,kmo_webadress,@adress_ID,@finance_ID);
+    
+    IF `_rollback` THEN
+        ROLLBACK;
+    ELSE
+        COMMIT;
+    END IF;
+END$$
+
+DELIMITER ;
+
+
+////// FINAL
+
+DELIMITER $$
+
+CREATE PROCEDURE insertAdress(
+	IN kmo_name varchar(64), IN nr_person varchar(64), IN telephone varchar(64), IN email varchar(64), IN kmo_ID varchar(64), IN kmo_webadress varchar(64),IN b2bIN varchar(64),
+    IN streetIN varchar(64), IN zipcodeIN varchar(64),
+    IN omzet varchar(64), IN total_value varchar(64), IN netto_toe varchar(64)
+)
+BEGIN
+    DECLARE `_rollback` BOOL DEFAULT 0;
+    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET `_rollback` = 1;
+    START TRANSACTION;
+    
+	INSERT INTO scrape.adress (street,zipcode) VALUES (streetIN,zipcodeIN);
+    SELECT LAST_INSERT_ID() into @adress_ID ;
+	INSERT INTO scrape.finance (turnover,totalAssets,netValueAdded) VALUES (omzet,total_value,netto_toe);
+    SELECT LAST_INSERT_ID() into @finance_ID ;
+	INSERT INTO scrape.kmo (ID,name,email,workforce,telephone,website,adressID,financeID,b2b) VALUES (kmo_ID,kmo_name,email,nr_person,telephone,kmo_webadress,@adress_ID,@finance_ID,b2bIN);
+    
+    IF `_rollback` THEN
+        ROLLBACK;
+    ELSE
+        COMMIT;
+    END IF;
+END$$
+
+DELIMITER ;
+
+//////
+
+call insertAdress('test_name',15,'test_telephone',NULL,'BE0000000000','test_web',0,'test_street',9340,50000,40000,30000);
+
+//////
+
+DELIMITER $$
+
+CREATE PROCEDURE insertSectorRef_and_sector(
+	IN kmo_ID varchar(64), IN sector_name varchar(64)
+)
+BEGIN
+    DECLARE `_rollback` BOOL DEFAULT 0;
+    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET `_rollback` = 1;
+    START TRANSACTION;
+    
+	INSERT INTO scrape.sector (name) VALUES (sector_name);
+    SELECT LAST_INSERT_ID() into @sector_ID ;
+	INSERT INTO scrape.sectorlist (kmoID,sectorID) VALUES (kmo_ID,@sector_ID);
+ 
+    IF `_rollback` THEN
+        ROLLBACK;
+    ELSE
+        COMMIT;
+    END IF;
+END$$
+
+DELIMITER ;
